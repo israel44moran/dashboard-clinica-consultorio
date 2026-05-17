@@ -22,6 +22,7 @@ st.set_page_config(
 )
 
 RUTA_DB = os.path.join(os.path.dirname(__file__), "covid_veracruz.db")
+RUTA_PARQUET = os.path.join(os.path.dirname(__file__), "casos_veracruz.parquet")
 
 # ============================================================
 # TOKENS DE DISEÑO
@@ -64,19 +65,33 @@ GRUPOS_LABELS = ["0-9", "10-19", "20-29", "30-39", "40-49",
 # CARGA
 # ============================================================
 @st.cache_data(show_spinner="Cargando base de datos...")
-def cargar_datos(ruta: str):
-    con = sqlite3.connect(ruta)
-    casos = pd.read_sql(
-        """
-        SELECT c.*, m.nombre AS municipio
-        FROM casos c
-        LEFT JOIN municipios m ON m.clave = c.municipio_res
-        """, con,
-    )
-    con.close()
+def cargar_datos(ruta_db: str, ruta_parquet: str):
+    """Carga los casos.
 
-    casos["fecha_sintomas"] = pd.to_datetime(casos["fecha_sintomas"], errors="coerce")
-    casos["fecha_def"] = pd.to_datetime(casos["fecha_def"], errors="coerce")
+    Estrategia: si existe el Parquet (5 MB, dtypes optimizados), lo usa.
+    Es el camino que toma Streamlit Cloud. Si no existe (instalacion local
+    recien hecha), cae al SQLite (66 MB) y hace el JOIN manualmente.
+    """
+    if os.path.exists(ruta_parquet):
+        casos = pd.read_parquet(ruta_parquet)
+    elif os.path.exists(ruta_db):
+        con = sqlite3.connect(ruta_db)
+        casos = pd.read_sql(
+            """
+            SELECT c.*, m.nombre AS municipio
+            FROM casos c
+            LEFT JOIN municipios m ON m.clave = c.municipio_res
+            """, con,
+        )
+        con.close()
+        casos["fecha_sintomas"] = pd.to_datetime(casos["fecha_sintomas"], errors="coerce")
+        casos["fecha_ingreso"] = pd.to_datetime(casos["fecha_ingreso"], errors="coerce")
+        casos["fecha_def"] = pd.to_datetime(casos["fecha_def"], errors="coerce")
+    else:
+        return None
+
+    # Estas dos columnas derivadas se calculan al vuelo (no estan en el parquet
+    # para mantenerlo lo mas chico posible, son baratas de calcular).
     casos["año"] = casos["fecha_sintomas"].dt.year
     casos["semana"] = casos["fecha_sintomas"].dt.to_period("W").dt.start_time
     casos["grupo_edad"] = pd.cut(
@@ -281,21 +296,23 @@ def fmt_fecha(d):
 # ============================================================
 # VERIFICACIÓN
 # ============================================================
-if not os.path.exists(RUTA_DB):
+if not os.path.exists(RUTA_PARQUET) and not os.path.exists(RUTA_DB):
     st.markdown(f"""
     <div style="text-align: center; padding: 4rem 2rem;">
-        <p style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: {AMBER}; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 1rem 0;">— BASE DE DATOS NO ENCONTRADA</p>
-        <p style="font-family: 'Fraunces', serif; font-style: italic; font-size: 1.5rem; color: {CREAM}; margin: 0 0 1rem 0;">Falta generar covid_veracruz.db</p>
+        <p style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: {AMBER}; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 1rem 0;">— DATOS NO ENCONTRADOS</p>
+        <p style="font-family: 'Fraunces', serif; font-style: italic; font-size: 1.5rem; color: {CREAM}; margin: 0 0 1rem 0;">Falta generar la base de datos</p>
         <p style="font-family: 'DM Sans'; color: {COOL}; max-width: 520px; margin: 0 auto; line-height: 1.6;">
-            Ejecuta primero <code style="color:{AMBER};">python descargar_datos.py</code> y luego
-            <code style="color:{AMBER};">python preparar_datos.py</code> para construir la base.
+            Ejecuta primero <code style="color:{AMBER};">python descargar_datos.py</code>, luego
+            <code style="color:{AMBER};">python preparar_datos.py</code> para construir la base, y
+            opcionalmente <code style="color:{AMBER};">python convertir_a_parquet.py</code> para
+            generar el archivo ligero que usa Streamlit Cloud.
         </p>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
 
 
-casos = cargar_datos(RUTA_DB)
+casos = cargar_datos(RUTA_DB, RUTA_PARQUET)
 
 
 # ============================================================

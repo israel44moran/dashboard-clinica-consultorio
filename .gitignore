@@ -25,3 +25,6 @@ Thumbs.db
 
 # Datos crudos pesados (regenerables con descargar_datos.py + preparar_datos.py)
 datos_raw/
+
+# Base de datos pesada (regenerable con preparar_datos.py)
+covid_veracruz.db

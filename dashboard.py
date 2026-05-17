@@ -90,7 +90,7 @@ def cargar_datos(ruta_db: str, ruta_parquet: str):
     else:
         return None
 
-    # Estas dos columnas derivadas se calculan al vuelo (no estan en el parquet
+    # Columnas derivadas que se calculan al vuelo (no estan en el parquet
     # para mantenerlo lo mas chico posible, son baratas de calcular).
     casos["año"] = casos["fecha_sintomas"].dt.year
     casos["semana"] = casos["fecha_sintomas"].dt.to_period("W").dt.start_time
@@ -99,6 +99,13 @@ def cargar_datos(ruta_db: str, ruta_parquet: str):
         bins=[g[0] for g in GRUPOS_EDAD] + [121],
         labels=GRUPOS_LABELS, right=False,
     )
+
+    # id_registro sintetico: el original (hashes opacos como "z4a7ad") se
+    # omitio del parquet para ahorrar ~10 MB; lo regeneramos al vuelo porque
+    # se usa para contar filas en agg() y como columna en la tabla detallada.
+    if "id_registro" not in casos.columns:
+        casos["id_registro"] = pd.RangeIndex(start=1, stop=len(casos) + 1).astype(str).str.zfill(7)
+
     return casos
 
 

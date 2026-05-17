@@ -1,4 +1,11 @@
-# Proyecto 7 — Observatorio COVID-19 · Veracruz
+﻿# Proyecto 7 — Observatorio COVID-19 · Veracruz
+
+> ### 🚀 Probar la app en vivo
+>
+> **https://clinica-veracruz.streamlit.app**
+
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://clinica-veracruz.streamlit.app)
+
 
 Dashboard epidemiológico construido sobre los **datos abiertos oficiales** de la Dirección General de Epidemiología (DGE) de la Secretaría de Salud de México. Cubre **2020-2023** filtrado a registros nominales del estado de **Veracruz** (~463,000 registros, de los cuales ~243,000 son casos confirmados de COVID-19).
 
